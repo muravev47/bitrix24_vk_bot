@@ -1,0 +1,41 @@
+# Python
+__pycache__/
+*.py[cod]
+*.so
+.Python
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Secret files (главное – не залить .env!)
+.env
+*.env
+*.key
+*.pem
+*.crt
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Logs
+*.log
+*.pid
+*.seed
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Project-specific
+docs/          # если там скачанные файлы документации – они не нужны в репозитории
+*.db
+*.sqlite3
+
+# Файлы с секретами, которые могут появиться
+*.pem
+*.crt
