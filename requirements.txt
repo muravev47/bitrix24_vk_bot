@@ -1,0 +1,7 @@
+python-dotenv==1.0.1
+vkbottle==4.0.0
+sqlalchemy==2.0.30
+selenium==4.20.0
+beautifulsoup4==4.12.3
+aiohttp==3.9.5
+yandex-cloud-ml-sdk==0.6.0

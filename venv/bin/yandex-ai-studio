@@ -1,0 +1,6 @@
+#!/home/murav/bitrix24_vk_bot/venv/bin/python3.11
+import sys
+from yandex_ai_studio_sdk.cli import main
+if __name__ == '__main__':
+    sys.argv[0] = sys.argv[0].removesuffix('.exe')
+    sys.exit(main())
