@@ -1,77 +1,98 @@
-import aiohttp
+import asyncio
+import pathlib
+from yandex_cloud_ml_sdk import YCloudML
+from yandex_cloud_ml_sdk.search_indexes import StaticIndexChunkingStrategy, TextSearchIndexType
 from src.config import settings
+import aiofiles
+import os
 
 class YandexAssistantManager:
     def __init__(self):
-        self.api_key = settings.YC_API_KEY
-        self.folder_id = settings.YC_FOLDER_ID
-        # Актуальный эндпоинт YandexGPT API
-        self.base_url = "https://llm.api.cloud.yandex.net/foundationModels/v1/completion"
+        self.sdk = YCloudML(folder_id=settings.YC_FOLDER_ID, auth=settings.YC_API_KEY)
+        self.assistant = None
+        self.search_index = None
+        self.initialized = False
+
+    async def _load_files(self, docs_dir: str):
+        """Загружает все текстовые файлы из docs_dir в File Storage."""
+        files = []
+        docs_path = pathlib.Path(docs_dir)
+        for file_path in docs_path.glob("*.txt"):
+            # Загружаем файл в хранилище
+            with open(file_path, "rb") as f:
+                file = self.sdk.files.upload(
+                    file_path,
+                    ttl_days=7,
+                    expiration_policy="static",
+                )
+                files.append(file)
+        return files
+
+    async def create_assistant(self, docs_dir: str = "docs/"):
+        """Создаёт ассистента с поисковым индексом."""
+        if self.initialized:
+            return
+
+        # Загружаем файлы
+        files = await self._load_files(docs_dir)
+        if not files:
+            raise ValueError("Нет файлов для загрузки. Сначала запустите парсер.")
+
+        # Создаём поисковый индекс
+        print("Создание поискового индекса...")
+        operation = self.sdk.search_indexes.create_deferred(
+            files,
+            index_type=TextSearchIndexType(
+                chunking_strategy=StaticIndexChunkingStrategy(
+                    max_chunk_size_tokens=700,
+                    chunk_overlap_tokens=300,
+                )
+            )
+        )
+        self.search_index = operation.wait()
+        print("Индекс создан.")
+
+        # Создаём инструмент file_search
+        tool = self.sdk.tools.search_index(self.search_index)
+
+        # Создаём ассистента с жёстким промптом
+        self.assistant = self.sdk.assistants.create(
+            'yandexgpt',
+            tools=[tool],
+            description="Помощник по документации Bitrix24 API",
+            instruction=(
+                "Ты — эксперт по Bitrix24 API. Отвечай только на основе загруженных документов. "
+                "Если информация отсутствует в документах, честно скажи, что не знаешь. "
+                "Не выдумывай и не добавляй ничего от себя. Ответы должны быть точными и краткими."
+            )
+        )
+        self.initialized = True
+        print("Ассистент создан.")
 
     async def ask_question(self, query: str, history: list = None) -> str:
-        """
-        Отправляет запрос к Yandex GPT через REST API.
-        history: список словарей с ключами "role" и "content"
-        """
-        messages = []
+        """Задаёт вопрос ассистенту с учётом истории."""
+        if not self.initialized:
+            await self.create_assistant()
 
-        # Системная инструкция
-        messages.append({
-            "role": "system",
-            "content": "Ты — эксперт по Bitrix24 API. Отвечай кратко и точно, ссылаясь на документацию."
-        })
-
-        # История диалога, если есть
+        # Создаём тред для диалога
+        thread = self.sdk.threads.create()
         if history:
             for msg in history:
                 role = msg.get("role", "user")
-                if role not in ["user", "assistant", "system"]:
-                    role = "user"
-                messages.append({
-                    "role": role,
-                    "content": msg.get("content", "")
-                })
+                content = msg.get("content", "")
+                if role in ("user", "assistant"):
+                    thread.write(content, role=role)
 
-        # Текущий вопрос
-        messages.append({
-            "role": "user",
-            "content": query
-        })
+        thread.write(query)
+        run = self.assistant.run(thread)
+        result = run.wait()
+        return result.text
 
-        # Тело запроса
-        payload = {
-            "modelUri": f"gpt://{self.folder_id}/yandexgpt-lite",
-            "completionOptions": {
-                "stream": False,
-                "temperature": 0.1,
-                "maxTokens": 2000
-            },
-            "messages": messages
-        }
-
-        headers = {
-            "Authorization": f"Api-Key {self.api_key}",
-            "x-folder-id": self.folder_id,
-            "Content-Type": "application/json"
-        }
-
-        async with aiohttp.ClientSession() as session:
-            async with session.post(self.base_url, json=payload, headers=headers) as resp:
-                data = await resp.json()
-                if resp.status != 200:
-                    print(f"❌ Yandex API error: {data}")
-                    raise Exception(f"Yandex API error (status {resp.status}): {data.get('message', 'Unknown error')}")
-
-                try:
-                    answer = data["result"]["alternatives"][0]["message"]["content"]
-                except (KeyError, IndexError):
-                    raise Exception(f"Unexpected API response: {data}")
-
-                return answer
-
-    async def update_knowledge_base(self, docs_dir: str):
-        """
-        В этой версии мы не используем поисковые индексы.
-        Вся необходимая информация передаётся через системный промпт.
-        """
-        pass
+    async def update_knowledge_base(self, docs_dir: str = "docs/"):
+        """Обновляет индекс при появлении новых файлов (пересоздаёт ассистента)."""
+        # Удаляем старый индекс и ассистента (опционально)
+        if self.search_index:
+            # В SDK нет явного удаления, можно просто пересоздать
+            pass
+        self.initialized = False
+        await self.create_assistant(docs_dir)
