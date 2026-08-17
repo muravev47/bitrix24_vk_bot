@@ -22,3 +22,9 @@ class MessageHistory(Base):
     query = Column(Text, nullable=False)
     response = Column(Text, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
+class YandexResource(Base):
+    __tablename__ = "yandex_resources"
+    id = Column(Integer, primary_key=True)
+    resource_type = Column(String(50), unique=True)  # 'assistant', 'search_index', 'file_ids'
+    resource_id = Column(Text)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)    

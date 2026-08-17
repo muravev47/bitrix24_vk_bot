@@ -84,6 +84,11 @@ class BitrixParser:
                 except Exception as e:
                     print(f"Ошибка при обработке {url}: {e}")
 
+    async def fetch_page(self, session: aiohttp.ClientSession, url: str) -> str:
+        async with session.get(url) as resp:
+            resp.raise_for_status()  # добавить!
+            return await resp.text()
+
 async def run_parser():
     parser = BitrixParser()
     await parser.parse_all()

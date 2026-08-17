@@ -3,6 +3,7 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy import select
 from src.database.models import User, MessageHistory
 from src.config import settings
+from src.database.models import YandexResource
 
 # Создаем асинхронный engine
 DATABASE_URL = f"postgresql+asyncpg://{settings.DB_USER}:{settings.DB_PASSWORD}@{settings.DB_HOST}:{settings.DB_PORT}/{settings.DB_NAME}"
@@ -53,3 +54,20 @@ async def get_history(user_id: int, limit: int = 5) -> list[MessageHistory]:
             .limit(limit)
         )
         return result.scalars().all()
+
+async def save_resource(resource_type: str, resource_id: str):
+    async with AsyncSessionLocal() as session:
+        res = await session.execute(select(YandexResource).where(YandexResource.resource_type == resource_type))
+        existing = res.scalar_one_or_none()
+        if existing:
+            existing.resource_id = resource_id
+            existing.updated_at = datetime.utcnow()
+        else:
+            session.add(YandexResource(resource_type=resource_type, resource_id=resource_id))
+        await session.commit()
+
+async def get_resource(resource_type: str) -> str | None:
+    async with AsyncSessionLocal() as session:
+        res = await session.execute(select(YandexResource).where(YandexResource.resource_type == resource_type))
+        obj = res.scalar_one_or_none()
+        return obj.resource_id if obj else None
