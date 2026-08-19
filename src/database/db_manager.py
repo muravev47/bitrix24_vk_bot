@@ -1,14 +1,20 @@
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy import select
-from src.database.models import User, MessageHistory
+from sqlalchemy.ext.declarative import declarative_base
 from src.config import settings
-from src.database.models import YandexResource
+from src.database.models import User, MessageHistory, YandexResource
+from datetime import datetime  # добавлен импорт
 
-# Создаем асинхронный engine
 DATABASE_URL = f"postgresql+asyncpg://{settings.DB_USER}:{settings.DB_PASSWORD}@{settings.DB_HOST}:{settings.DB_PORT}/{settings.DB_NAME}"
 engine = create_async_engine(DATABASE_URL, echo=True)
 AsyncSessionLocal = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
+Base = declarative_base()
+
+async def init_db():
+    """Создаёт все таблицы в БД."""
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
 
 
 async def get_user(vk_id: int) -> User | None:

@@ -1,18 +1,25 @@
-# octagon-example
-# Bitrix24 VK Bot
+# Bitrix24 VK Bot (RAG + YandexGPT)
 
-Бот для консультаций по API Bitrix24 через ВКонтакте с использованием Yandex GPT.
+Бот для ВКонтакте, отвечающий на вопросы по документации Bitrix24 API с использованием YandexGPT и RAG.
 
-## Установка
-1. Клонируйте репозиторий.
-2. Создайте виртуальное окружение и установите зависимости: `pip install -r requirements.txt`.
-3. Настройте `.env` файл согласно описанию.
-4. Выполните `python init_db.py` для создания таблиц в PostgreSQL.
-5. Запустите бота: `python -m src.main`.
+## 🚀 Установка и запуск
 
-## Переменные окружения (.env)
-- `VK_TOKEN` – токен сообщества ВКонтакте.
-- `VK_GROUP_ID` – ID группы (можно с префиксом club).
-- `YC_API_KEY` – API-ключ сервисного аккаунта Yandex Cloud.
-- `YC_FOLDER_ID` – ID каталога в Yandex Cloud.
-- `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASSWORD` – параметры подключения к PostgreSQL.
+1. Клонируйте репозиторий:
+   ```bash
+   git clone https://github.com/ваш_логин/bitrix24-vk-bot.git
+   cd bitrix24-vk-bot
+
+2. Создайте виртуальное окружение и активируйте его:
+    python3.11 -m venv venv
+    source venv/bin/activate
+
+3. Установите зависимости:
+    pip install -r requirements.txt
+
+4. Создайте файл .env по образцу .env.example и заполните своими данными.
+
+5. Первоначальная подготовка базы знаний (парсинг документации, загрузка в Yandex Cloud, создание индекса):
+    python prepare_kb.py  <!-- Этот шаг выполняется один раз перед запуском бота и может занять несколько минут. -->
+
+6. Запустите бота:
+    python -m src.main

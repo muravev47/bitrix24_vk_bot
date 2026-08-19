@@ -1,5 +1,4 @@
 python-dotenv==1.0.1
-vkbottle==4.10.0
 sqlalchemy==2.0.30
 asyncpg==0.29.0
 yandex-cloud-ml-sdk==0.6.0

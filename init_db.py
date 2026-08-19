@@ -1,16 +1,9 @@
 import asyncio
-from src.database.models import Base
-from src.database.db_manager import engine
+from src.database.db_manager import init_db
 
-async def init_db():
-    async with engine.begin() as conn:
-        # Создаём все таблицы, определённые в Base
-        await conn.run_sync(Base.metadata.create_all)
-    print("✅ Таблицы успешно созданы!")
-
-async def init_db():
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
+async def main():
+    await init_db()
+    print("✅ Таблицы созданы!")
 
 if __name__ == "__main__":
-    asyncio.run(init_db())
+    asyncio.run(main())
